@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
+project(clap-c99-distortion VERSION 0.9.0 LANGUAGES C)
+set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_OSX_DEPLOYMENT_TARGET 10.11 CACHE STRING "Build for 10.1")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-project(clap-c99-distortion VERSION 0.9.0 LANGUAGES C)
-
-set(CMAKE_C_STANDARD 99)
 
 # use asan as an option (currently mac only)
 option(USE_SANITIZER "Build and link with ASAN" FALSE)
@@ -15,10 +14,26 @@ option(USE_SANITIZER "Build and link with ASAN" FALSE)
 option(COPY_AFTER_BUILD "Copy the clap to ~/Library on MACOS, ~/.clap on linux" TRUE)
 
 add_subdirectory(libs/clap EXCLUDE_FROM_ALL)
+add_subdirectory(libs/nanovg_compat)
+
+set(LIBS clap-core plugin_platform nanovg_compat)
+set(DIRS 
+    libs/clap/include
+    libs/nanovg_compat/src
+    libs/nanovg_compat/modules/nanovg_dx11/src
+    libs/nanovg_compat/modules/MetalNanoVG/src
+)
+
+if (APPLE)
+    add_library(plugin_platform STATIC src/gui_osx.m)
+    list(APPEND LIBS "-framework Cocoa -framework Metal -framework QuartzCore")
+endif()
+target_include_directories(plugin_platform PRIVATE ${DIRS})
 
 add_library(${PROJECT_NAME} MODULE
         src/clap-c99-distortion.c)
-target_link_libraries(${PROJECT_NAME} clap-core)
+target_include_directories(${PROJECT_NAME} PRIVATE ${DIRS})
+target_link_libraries(${PROJECT_NAME} ${LIBS})
 
 if(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES

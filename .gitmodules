@@ -1,3 +1,6 @@
 [submodule "libs/clap"]
 	path = libs/clap
 	url = https://github.com/free-audio/clap.git
+[submodule "libs/nanovg_compat"]
+	path = libs/nanovg_compat
+	url = https://github.com/Tremus/nanovg_compat

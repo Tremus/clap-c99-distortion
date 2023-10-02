@@ -3,13 +3,15 @@
 // plugin, I'd encourage you to use the C++ glue layer instead:
 // https://github.com/free-audio/clap-helpers/blob/main/include/clap/helpers/plugin.hh
 
+#include "common.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <clap/clap.h>
 #include <math.h>
 #include <assert.h>
+#include <nanovg_compat.h>
 
 static const clap_plugin_descriptor_t s_c99dist_desc = {
     .clap_version = CLAP_VERSION_INIT,
@@ -39,21 +41,171 @@ enum ParamIds
     pid_MODE = 5150
 };
 
-typedef struct
-{
-    clap_plugin_t plugin;
-    const clap_host_t *host;
-    const clap_host_latency_t *hostLatency;
-    const clap_host_log_t *hostLog;
-    const clap_host_thread_check_t *hostThreadCheck;
-    const clap_host_params_t *hostParams;
-
-    float drive;
-    float mix;
-    int32_t mode;
-} clap_c99_distortion_plug;
-
 static void c99dist_process_event(clap_c99_distortion_plug *plug, const clap_event_header_t *hdr);
+
+/////////////////////
+// clap_plugin_gui //
+/////////////////////
+
+void GUICreate(const clap_c99_distortion_plug *);
+void GUIDestroy(const clap_c99_distortion_plug *);
+void GUISetParent(clap_c99_distortion_plug *, const clap_window_t *);
+void GUISetVisible(clap_c99_distortion_plug *, bool);
+void GUIDraw(clap_c99_distortion_plug *plug)
+{
+    NVGcontext *nvg = plug->gui->nvg;
+    nvgBindFramebuffer(nvg, 0);
+    nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, 2.0f);
+    nvgClearWithColor(nvg, nvgRGBAf(1.0f, 0.0f, 1.0f, 1.0f));
+    nvgEndFrame(nvg);
+}
+
+#if defined(_WIN32)
+#include "gui_w32.cpp"
+#elif defined(__APPLE__)
+#define GUI_API CLAP_WINDOW_API_COCOA
+#else
+#error "TODO: support linux"
+#endif
+
+static bool c99dist_gui_is_api_supported(const clap_plugin_t *plugin, const char *api,
+                                         bool isFloating)
+{
+    return 0 == strcmp(api, GUI_API) && !isFloating;
+}
+
+static bool c99dist_gui_get_preferred_api(const clap_plugin_t *plugin, const char **api,
+                                          bool *isFloating)
+{
+    *api = GUI_API;
+    *isFloating = false;
+    return true;
+}
+
+static bool c99dist_gui_create(const clap_plugin_t *_plugin, const char *api, bool isFloating)
+{
+    if (!c99dist_gui_is_api_supported(_plugin, api, isFloating))
+        return false;
+
+    clap_c99_distortion_plug *plug = _plugin->plugin_data;
+
+    clap_c99_gui *gui = calloc(1, sizeof(clap_c99_gui));
+    plug->gui = gui;
+    gui->plug = plug;
+
+    GUICreate(plug);
+    assert(gui->main_view != NULL);
+    gui->nvg = nvgCreateContext(gui->main_view, 0, GUI_WIDTH, GUI_HEIGHT);
+    assert(gui->nvg != NULL);
+    gui->main_fbo = nvgCreateFramebuffer(gui->nvg, GUI_WIDTH, GUI_HEIGHT, 0);
+
+    // NOTE: Bitwig doesn't seem to support timers, so it's unlikely any host does.
+    // Better to implement your own timers...
+    if (plug->hostTimerSupport && plug->hostTimerSupport->register_timer)
+        plug->hostTimerSupport->register_timer(plug->host, 16, &gui->draw_timer_ID);
+
+    GUIDraw(plug);
+
+    return true;
+}
+
+static void c99dist_gui_destroy(const clap_plugin_t *_plugin)
+{
+    clap_c99_distortion_plug *plug = _plugin->plugin_data;
+
+    if (plug->hostTimerSupport && plug->hostTimerSupport->unregister_timer)
+        plug->hostTimerSupport->unregister_timer(plug->host, plug->gui->draw_timer_ID);
+
+    nvgDeleteFramebuffer(plug->gui->nvg, plug->gui->main_fbo);
+    nvgDeleteContext(plug->gui->nvg);
+    GUIDestroy(plug);
+    free(plug->gui);
+    plug->gui = NULL;
+}
+static bool c99dist_gui_set_scale(const clap_plugin_t *plugin, double scale) { return false; }
+static bool c99dist_gui_get_size(const clap_plugin_t *plugin, uint32_t *width, uint32_t *height)
+{
+    *width = GUI_WIDTH;
+    *height = GUI_HEIGHT;
+    return true;
+}
+
+static bool c99dist_gui_can_resize(const clap_plugin_t *plugin) { return false; }
+
+static bool c99dist_gui_get_resize_hints(const clap_plugin_t *plugin,
+                                         clap_gui_resize_hints_t *hints)
+{
+    return false;
+}
+
+static bool c99dist_gui_adjust_size(const clap_plugin_t *plugin, uint32_t *width, uint32_t *height)
+{
+    return c99dist_gui_get_size(plugin, width, height);
+}
+static bool c99dist_gui_set_size(const clap_plugin_t *plugin, uint32_t width, uint32_t height)
+{
+    return true;
+}
+
+static bool c99dist_gui_set_parent(const clap_plugin_t *_plugin, const clap_window_t *window)
+{
+    assert(0 == strcmp(window->api, GUI_API));
+    GUISetParent((clap_c99_distortion_plug *)_plugin->plugin_data, window);
+    return true;
+}
+
+static bool c99dist_gui_set_transient(const clap_plugin_t *plugin, const clap_window_t *window)
+{
+    return false;
+}
+
+static void c99dist_gui_suggest_title(const clap_plugin_t *plugin, const char *title) {}
+
+static bool c99dist_gui_show(const clap_plugin_t *_plugin)
+{
+    GUISetVisible((clap_c99_distortion_plug *)_plugin->plugin_data, true);
+    return true;
+}
+static bool c99dist_gui_hide(const clap_plugin_t *_plugin)
+{
+    GUISetVisible((clap_c99_distortion_plug *)_plugin->plugin_data, false);
+    return true;
+}
+
+static const clap_plugin_gui_t s_c99dist_gui = {
+    .is_api_supported = c99dist_gui_is_api_supported,
+    .get_preferred_api = c99dist_gui_get_preferred_api,
+    .create = c99dist_gui_create,
+    .destroy = c99dist_gui_destroy,
+    .set_scale = c99dist_gui_set_scale,
+    .get_size = c99dist_gui_get_size,
+    .can_resize = c99dist_gui_can_resize,
+    .get_resize_hints = c99dist_gui_get_resize_hints,
+    .adjust_size = c99dist_gui_adjust_size,
+    .set_size = c99dist_gui_set_size,
+    .set_parent = c99dist_gui_set_parent,
+    .set_transient = c99dist_gui_set_transient,
+    .suggest_title = c99dist_gui_suggest_title,
+    .show = c99dist_gui_show,
+    .hide = c99dist_gui_hide,
+};
+
+///////////////////////////////
+// clap_plugin_timer_support //
+///////////////////////////////
+
+static void c99dist_timer_support_on_timer(const clap_plugin_t *_plugin, clap_id timerID)
+{
+    clap_c99_distortion_plug *plug = _plugin->plugin_data;
+
+    // If the GUI is open and at least one parameter value has changed...
+    if (plug->gui && timerID == plug->gui->draw_timer_ID)
+        GUIDraw(plug);
+}
+
+static const clap_plugin_timer_support_t s_c99dist_timer_support = {
+    .on_timer = c99dist_timer_support_on_timer,
+};
 
 /////////////////////////////
 // clap_plugin_audio_ports //
@@ -94,7 +246,7 @@ static const clap_plugin_latency_t s_c99dist_latency = {
 };
 
 //////////////////
-// clap_porams //
+// clap_params //
 //////////////////
 
 uint32_t c99dist_param_count(const clap_plugin_t *plugin) { return 3; }
@@ -254,7 +406,8 @@ bool c99dist_state_save(const clap_plugin_t *plugin, const clap_ostream_t *strea
     return true;
 }
 
-bool c99dist_state_load(const clap_plugin_t *plugin, const clap_istream_t *stream) {
+bool c99dist_state_load(const clap_plugin_t *plugin, const clap_istream_t *stream)
+{
     clap_c99_distortion_plug *plug = plugin->plugin_data;
 
     int buffersize = 16;
@@ -262,7 +415,7 @@ bool c99dist_state_load(const clap_plugin_t *plugin, const clap_istream_t *strea
 
     int read = 0;
     char *curr = buffer;
-    while( read != buffersize)
+    while (read != buffersize)
     {
         int thisread = stream->read(stream, curr, buffersize - read);
         if (thisread < 0)
@@ -291,9 +444,15 @@ static bool c99dist_init(const struct clap_plugin *plugin)
     clap_c99_distortion_plug *plug = plugin->plugin_data;
 
     // Fetch host's extensions here
+    plug->hostLatency = plug->host->get_extension(plug->host, CLAP_EXT_LATENCY);
     plug->hostLog = plug->host->get_extension(plug->host, CLAP_EXT_LOG);
     plug->hostThreadCheck = plug->host->get_extension(plug->host, CLAP_EXT_THREAD_CHECK);
-    plug->hostLatency = plug->host->get_extension(plug->host, CLAP_EXT_LATENCY);
+    plug->hostParams = plug->host->get_extension(plug->host, CLAP_EXT_PARAMS);
+    plug->hostTimerSupport = plug->host->get_extension(plug->host, CLAP_EXT_TIMER_SUPPORT);
+
+    // Asserting will crash the plugin...
+    // Host timers don't work in Bitwigyet...
+    // assert(plug->hostTimerSupport != NULL);
 
     plug->drive = 0.f;
     plug->mix = 0.5f;
@@ -444,6 +603,10 @@ static const void *c99dist_get_extension(const struct clap_plugin *plugin, const
         return &s_c99dist_params;
     if (!strcmp(id, CLAP_EXT_STATE))
         return &s_c99dist_state;
+    if (!strcmp(id, CLAP_EXT_GUI))
+        return &s_c99dist_gui;
+    if (!strcmp(id, CLAP_EXT_TIMER_SUPPORT))
+        return &s_c99dist_timer_support;
     return NULL;
 }
 
