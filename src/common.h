@@ -31,3 +31,16 @@ typedef struct
     float mix;
     int32_t mode;
 } clap_c99_distortion_plug;
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    void fallback_timer_plugin_init(const clap_plugin_t *);
+    void fallback_timer_plugin_deinit(const clap_plugin_t *);
+
+    void fallback_timer_register(const clap_plugin_t *, uint32_t period_ms, clap_id *);
+    void fallback_timer_unregister(const clap_plugin_t *, clap_id);
+#ifdef __cplusplus
+}
+#endif

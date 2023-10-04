@@ -99,12 +99,13 @@ static bool c99dist_gui_create(const clap_plugin_t *_plugin, const char *api, bo
     assert(gui->nvg != NULL);
     gui->main_fbo = nvgCreateFramebuffer(gui->nvg, GUI_WIDTH, GUI_HEIGHT, 0);
 
-    // NOTE: Bitwig doesn't seem to support timers, so it's unlikely any host does.
-    // Better to implement your own timers...
     if (plug->hostTimerSupport && plug->hostTimerSupport->register_timer)
         plug->hostTimerSupport->register_timer(plug->host, 16, &gui->draw_timer_ID);
-
-    GUIDraw(plug);
+    else
+    {
+        fallback_timer_plugin_init(_plugin);
+        fallback_timer_register(_plugin, 16, &gui->draw_timer_ID);
+    }
 
     return true;
 }
@@ -115,6 +116,11 @@ static void c99dist_gui_destroy(const clap_plugin_t *_plugin)
 
     if (plug->hostTimerSupport && plug->hostTimerSupport->unregister_timer)
         plug->hostTimerSupport->unregister_timer(plug->host, plug->gui->draw_timer_ID);
+    else
+    {
+        fallback_timer_unregister(_plugin, plug->gui->draw_timer_ID);
+        fallback_timer_plugin_deinit(_plugin);
+    }
 
     nvgDeleteFramebuffer(plug->gui->nvg, plug->gui->main_fbo);
     nvgDeleteContext(plug->gui->nvg);
@@ -449,10 +455,6 @@ static bool c99dist_init(const struct clap_plugin *plugin)
     plug->hostThreadCheck = plug->host->get_extension(plug->host, CLAP_EXT_THREAD_CHECK);
     plug->hostParams = plug->host->get_extension(plug->host, CLAP_EXT_PARAMS);
     plug->hostTimerSupport = plug->host->get_extension(plug->host, CLAP_EXT_TIMER_SUPPORT);
-
-    // Asserting will crash the plugin...
-    // Host timers don't work in Bitwigyet...
-    // assert(plug->hostTimerSupport != NULL);
 
     plug->drive = 0.f;
     plug->mix = 0.5f;
