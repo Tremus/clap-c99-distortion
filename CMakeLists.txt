@@ -11,7 +11,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(USE_SANITIZER "Build and link with ASAN" FALSE)
 
 # Copy on mac (could expand to other platforms)
-option(COPY_AFTER_BUILD "Copy the clap to ~/Library on MACOS, ~/.clap on linux" TRUE)
+option(COPY_AFTER_BUILD "Copy the clap to ~/Library on MACOS, ~/.clap on linux" FALSE)
 
 add_subdirectory(libs/clap EXCLUDE_FROM_ALL)
 add_subdirectory(libs/nanovg_compat)
@@ -25,10 +25,12 @@ set(DIRS
 )
 
 if (APPLE)
-    add_library(plugin_platform STATIC src/gui_osx.m)
+    add_library(plugin_platform STATIC src/platform_osx.m)
     list(APPEND LIBS "-framework Cocoa -framework Metal -framework QuartzCore")
+    target_include_directories(plugin_platform PRIVATE ${DIRS})
+elseif(WIN32)
+    list(APPEND LIBS d3d11 dxguid)
 endif()
-target_include_directories(plugin_platform PRIVATE ${DIRS})
 
 add_library(${PROJECT_NAME} MODULE
         src/clap-c99-distortion.c)
@@ -57,7 +59,7 @@ if(APPLE)
         )
 
     if (${COPY_AFTER_BUILD})
-        message(STATUS "Will copy plugin after every build" )
+        message(STATUS "Will copy plugin after every build")
         set(products_folder ${CMAKE_BINARY_DIR})
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Installing ${products_folder}/${PROJECT_NAME}.clap to ~/Library/Audio/Plug-Ins/CLAP/"
@@ -70,7 +72,7 @@ elseif(UNIX)
     target_sources(${PROJECT_NAME} PRIVATE src/linux-vstgui-adapter.cpp)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".clap" PREFIX "")
     if (${COPY_AFTER_BUILD})
-        message(STATUS "Will copy plugin after every build" )
+        message(STATUS "Will copy plugin after every build")
         set(products_folder ${CMAKE_BINARY_DIR})
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Installing ${products_folder}/${PROJECT_NAME}.clap to ~/.clap"
@@ -82,4 +84,14 @@ elseif(UNIX)
 else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE IS_WIN=1)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".clap" PREFIX "")
+    # if (${COPY_AFTER_BUILD})
+    #     message(STATUS "Will copy plugin after every build")
+    #     set(products_folder ${CMAKE_BINARY_DIR})
+    #     set(installation_folder "$ENV{ProgramW6432}\\Common\ Files\\CLAP\\")
+    #     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    #         COMMAND ${CMAKE_COMMAND} -E echo "Installing ${products_folder}\\${PROJECT_NAME}.clap to ${installation_folder}"
+    #         COMMAND ${CMAKE_COMMAND} -E make_directory ${installation_folder}
+    #         COMMAND ${CMAKE_COMMAND} -E copy "${products_folder}\\${PROJECT_NAME}.clap" "${installation_folder}"
+    #         )
+    # endif()
 endif()

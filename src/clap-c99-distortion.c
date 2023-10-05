@@ -13,6 +13,10 @@
 #include <assert.h>
 #include <nanovg_compat.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 static const clap_plugin_descriptor_t s_c99dist_desc = {
     .clap_version = CLAP_VERSION_INIT,
     .id = "org.surge-synth-team.clap-c99-distortion",
@@ -61,7 +65,8 @@ void GUIDraw(clap_c99_distortion_plug *plug)
 }
 
 #if defined(_WIN32)
-#include "gui_w32.cpp"
+#include "platform_win.c"
+#define GUI_API CLAP_WINDOW_API_WIN32
 #elif defined(__APPLE__)
 #define GUI_API CLAP_WINDOW_API_COCOA
 #else
@@ -251,9 +256,9 @@ static const clap_plugin_latency_t s_c99dist_latency = {
     .get = c99dist_latency_get,
 };
 
-//////////////////
+/////////////////
 // clap_params //
-//////////////////
+/////////////////
 
 uint32_t c99dist_param_count(const clap_plugin_t *plugin) { return 3; }
 bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
@@ -263,7 +268,7 @@ bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
     {
     case 0: // drive
         param_info->id = pid_DRIVE;
-        strncpy(param_info->name, "Drive", CLAP_NAME_SIZE);
+        strncpy_s(param_info->name, CLAP_NAME_SIZE, "Drive", CLAP_NAME_SIZE);
         param_info->module[0] = 0;
         param_info->default_value = 0.;
         param_info->min_value = -1;
@@ -273,7 +278,7 @@ bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
         break;
     case 1: // mix
         param_info->id = pid_MIX;
-        strncpy(param_info->name, "MIX", CLAP_NAME_SIZE);
+        strncpy_s(param_info->name, CLAP_NAME_SIZE, "MIX", CLAP_NAME_SIZE);
         param_info->module[0] = 0;
         param_info->default_value = 0.5;
         param_info->min_value = 0;
@@ -283,7 +288,7 @@ bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
         break;
     case 2: // mode
         param_info->id = pid_MODE;
-        strncpy(param_info->name, "Mode", CLAP_NAME_SIZE);
+        strncpy_s(param_info->name, CLAP_NAME_SIZE, "Mode", CLAP_NAME_SIZE);
         param_info->module[0] = 0;
         param_info->default_value = 0.;
         param_info->min_value = 0;

@@ -1,3 +1,4 @@
+#pragma once
 #include <clap/clap.h>
 #include <nanovg_compat.h>
 
