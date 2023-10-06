@@ -1,4 +1,10 @@
 #pragma once
+// Galaxy brains at Microsoft will warn you about strncpy in c99, telling you to use strncpy_s instead.
+// When you do, your code may not compile on other compilers because strncpy_s is not in c99!
+#if defined(_WIN32) && !defined(_CRT_SECURE_NO_WARNINGS)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <clap/clap.h>
 #include <nanovg_compat.h>
 

@@ -47,7 +47,6 @@ if(APPLE)
         MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/${PROJECT_NAME}.plist.in
         )
-    target_compile_definitions(${PROJECT_NAME} PRIVATE IS_MAC=1)
     target_compile_options(${PROJECT_NAME} PRIVATE
         -Werror
         $<$<BOOL:${USE_SANITIZER}>:-fsanitize=address>
@@ -68,7 +67,6 @@ if(APPLE)
             )
     endif()
 elseif(UNIX)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE IS_LINUX=1)
     target_sources(${PROJECT_NAME} PRIVATE src/linux-vstgui-adapter.cpp)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".clap" PREFIX "")
     if (${COPY_AFTER_BUILD})
@@ -82,7 +80,6 @@ elseif(UNIX)
     endif()
 
 else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE IS_WIN=1)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".clap" PREFIX "")
     # if (${COPY_AFTER_BUILD})
     #     message(STATUS "Will copy plugin after every build")
