@@ -21,12 +21,12 @@ set(DIRS
     libs/clap/include
     libs/nanovg_compat/src
     libs/nanovg_compat/modules/nanovg_dx11/src
-    libs/nanovg_compat/modules/MetalNanoVG/src
 )
 
 if (APPLE)
     add_library(plugin_platform STATIC src/platform_osx.m)
     list(APPEND LIBS "-framework Cocoa -framework Metal -framework QuartzCore")
+    list(APPEND DIRS libs/nanovg_compat/modules/MetalNanoVG/src)
     target_include_directories(plugin_platform PRIVATE ${DIRS})
 elseif(WIN32)
     list(APPEND LIBS d3d11 dxguid)

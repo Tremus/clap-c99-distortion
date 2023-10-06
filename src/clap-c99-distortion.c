@@ -59,13 +59,22 @@ void GUIDraw(clap_c99_distortion_plug *plug)
 {
     NVGcontext *nvg = plug->gui->nvg;
     nvgBindFramebuffer(nvg, 0);
-    nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, 2.0f);
+    // nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, 2.0f);
+    nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, 1.0f);
     nvgClearWithColor(nvg, nvgRGBAf(1.0f, 0.0f, 1.0f, 1.0f));
+    nvgBeginPath(nvg);
+    nvgRect(nvg, 20, 20, 20, 20);
+    nvgFillColor(nvg, nvgRGBAf(0.0f, 1.0f, 0.0f, 1.0f));
+    nvgFill(nvg);
     nvgEndFrame(nvg);
+
+#ifdef _WIN32
+    d3dnvgPresent(nvg);
+#endif
 }
 
 #if defined(_WIN32)
-#include "platform_win.c"
+#include "platform_windows.c"
 #define GUI_API CLAP_WINDOW_API_WIN32
 #elif defined(__APPLE__)
 #define GUI_API CLAP_WINDOW_API_COCOA
@@ -99,7 +108,6 @@ static bool c99dist_gui_create(const clap_plugin_t *_plugin, const char *api, bo
     gui->plug = plug;
 
     GUICreate(plug);
-    assert(gui->main_view != NULL);
     gui->nvg = nvgCreateContext(gui->main_view, 0, GUI_WIDTH, GUI_HEIGHT);
     assert(gui->nvg != NULL);
     gui->main_fbo = nvgCreateFramebuffer(gui->nvg, GUI_WIDTH, GUI_HEIGHT, 0);

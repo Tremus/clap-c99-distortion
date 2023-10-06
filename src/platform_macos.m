@@ -1,5 +1,4 @@
-#include "common.h"
-#include "array.h"
+#include "fallbacktimer.c"
 
 #import <Cocoa/Cocoa.h>
 
@@ -40,115 +39,28 @@ void GUISetVisible(clap_c99_distortion_plug *plug, bool visible)
     [main setHidden:(visible ? NO : YES)];
 }
 
-typedef struct
-{
-    uint32_t period; // if period is 0 the entry is unused (and can be reused)
-    clap_id timer_id;
-    uint64_t nexttick;
-} Timer;
-
-typedef struct
-{
-    const clap_plugin_t *plugin;
-    Timer *timers;
-    uint32_t id_counter;
-} PluginTimers;
-
 static CFRunLoopTimerRef g_osx_timer = NULL;
-static PluginTimers *g_plugintimers = NULL;
 
-uint64_t get_ticks_ms() { return (clock() * 1000) / CLOCKS_PER_SEC; }
+uint64_t fallback_timer_platform_get_ticks_ms() { return (clock() * 1000) / CLOCKS_PER_SEC; }
 
-static void fallback_timer_callback(CFRunLoopTimerRef t, void *info)
+void osx_timer_cb(CFRunLoopTimerRef t, void *info) { fallback_timer_callback(); }
+
+void fallback_timer_platform_globals_init(const clap_plugin_t *cplug)
 {
-    for (PluginTimers *pt = g_plugintimers; pt != xarr_end(g_plugintimers); pt++)
-    {
-        uint64_t now = get_ticks_ms();
-
-        for (Timer *t = pt->timers; t != xarr_end(pt->timers); t++)
-        {
-            if (t->nexttick < now)
-            {
-                t->nexttick = now + t->period;
-                const clap_plugin_timer_support_t *ext =
-                    pt->plugin->get_extension(pt->plugin, CLAP_EXT_TIMER_SUPPORT);
-                ext->on_timer(pt->plugin, t->timer_id);
-            }
-        }
-    }
+    CFRunLoopTimerContext context = {};
+    context.info = &g_plugintimers;
+    g_osx_timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + 0.01, 0.01, 0, 0,
+                                       osx_timer_cb, &context);
+    if (g_osx_timer)
+        CFRunLoopAddTimer(CFRunLoopGetCurrent(), g_osx_timer, kCFRunLoopCommonModes);
 }
 
-void fallback_timer_plugin_init(const clap_plugin_t *plugobject)
+void fallback_timer_platform_globals_deinit(const clap_plugin_t *cplug)
 {
-    if (xarr_len(g_plugintimers) == 0)
+    if (g_osx_timer)
     {
-        xarr_setcap(g_plugintimers, 16);
-        CFRunLoopTimerContext context = {};
-        context.info = &g_plugintimers;
-        g_osx_timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + 0.01, 0.01, 0, 0,
-                                           fallback_timer_callback, &context);
-        if (g_osx_timer)
-            CFRunLoopAddTimer(CFRunLoopGetCurrent(), g_osx_timer, kCFRunLoopCommonModes);
+        CFRunLoopTimerInvalidate(g_osx_timer);
+        CFRelease(g_osx_timer);
     }
-
-    PluginTimers pt = {.plugin = plugobject, .timers = NULL, .id_counter = 0};
-    xarr_push(g_plugintimers, pt);
-}
-
-void fallback_timer_plugin_deinit(const clap_plugin_t *plugobject)
-{
-    for (size_t i = 0; i < xarr_len(g_plugintimers); i++)
-    {
-        if (g_plugintimers[i].plugin == plugobject)
-        {
-            xarr_free(g_plugintimers[i].timers);
-            xarr_delete(g_plugintimers, i);
-            break;
-        }
-    }
-
-    if (xarr_len(g_plugintimers) == 0)
-    {
-        if (g_osx_timer)
-        {
-            CFRunLoopTimerInvalidate(g_osx_timer);
-            CFRelease(g_osx_timer);
-        }
-        g_osx_timer = NULL;
-        xarr_free(g_plugintimers);
-    }
-}
-
-void fallback_timer_register(const clap_plugin_t *plugobject, uint32_t period_ms, clap_id *timer_id)
-{
-    if (period_ms < 16)
-        period_ms = 16;
-
-    PluginTimers *pt = g_plugintimers;
-    while (pt != xarr_end(g_plugintimers) && pt->plugin != plugobject)
-        pt++;
-    assert(pt != xarr_end(g_plugintimers));
-
-    clap_id newid = pt->id_counter++;
-
-    Timer t = {period_ms, newid, get_ticks_ms() + period_ms};
-    *timer_id = newid;
-    xarr_push(pt->timers, t);
-}
-
-void fallback_timer_unregister(const clap_plugin_t *plugobject, clap_id timer_id)
-{
-    PluginTimers *pt = g_plugintimers;
-    while (pt != xarr_end(g_plugintimers) && pt->plugin != plugobject)
-        pt++;
-    assert(pt != xarr_end(g_plugintimers));
-
-    for (size_t i = 0; i < xarr_len(pt->timers); i++)
-    {
-        if (pt->timers[i].timer_id == timer_id)
-        {
-            xarr_delete(pt->timers, i);
-            break;
-        }
-    }
+    g_osx_timer = NULL;
 }
