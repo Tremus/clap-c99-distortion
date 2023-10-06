@@ -4,3 +4,9 @@
 [submodule "libs/nanovg_compat"]
 	path = libs/nanovg_compat
 	url = https://github.com/Tremus/nanovg_compat
+[submodule "libs/clap-wrapper"]
+	path = libs/clap-wrapper
+	url = https://github.com/free-audio/clap-wrapper
+[submodule "libs/vst3sdk"]
+	path = libs/vst3sdk
+	url = https://github.com/steinbergmedia/vst3sdk

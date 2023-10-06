@@ -3,9 +3,12 @@ project(clap-c99-distortion VERSION 0.9.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-set(CMAKE_OSX_DEPLOYMENT_TARGET 10.11 CACHE STRING "Build for 10.1")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
+if (APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15 CACHE STRING "Build for 10.15" FORCE)
+    enable_language(OBJC)
+    enable_language(OBJCXX)
+endif()
 
 # use asan as an option (currently mac only)
 option(USE_SANITIZER "Build and link with ASAN" FALSE)
@@ -14,6 +17,9 @@ option(USE_SANITIZER "Build and link with ASAN" FALSE)
 option(COPY_AFTER_BUILD "Copy the clap to ~/Library on MACOS, ~/.clap on linux" FALSE)
 
 add_subdirectory(libs/clap EXCLUDE_FROM_ALL)
+set(CLAP_WRAPPER_OUTPUT_NAME ${PROJECT_NAME})
+set(VST3_SDK_ROOT ${PROJECT_SOURCE_DIR}/libs/vst3sdk)
+add_subdirectory(libs/clap-wrapper)
 add_subdirectory(libs/nanovg_compat)
 
 set(LIBS clap-core plugin_platform nanovg_compat)
