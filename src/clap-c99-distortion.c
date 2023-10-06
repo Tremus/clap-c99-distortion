@@ -59,8 +59,7 @@ void GUIDraw(clap_c99_distortion_plug *plug)
 {
     NVGcontext *nvg = plug->gui->nvg;
     nvgBindFramebuffer(nvg, 0);
-    // nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, 2.0f);
-    nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, 1.0f);
+    nvgBeginFrame(nvg, GUI_WIDTH, GUI_HEIGHT, plug->gui->pixel_scale);
     nvgClearWithColor(nvg, nvgRGBAf(1.0f, 0.0f, 1.0f, 1.0f));
     nvgBeginPath(nvg);
     nvgRect(nvg, 20, 20, 20, 20);

@@ -18,6 +18,9 @@ void GUICreate(const clap_c99_distortion_plug *plugin)
         plugin->plugin.desc->id, plugin->plugin.desc->name, WS_CHILDWINDOW | WS_CLIPSIBLINGS,
         CW_USEDEFAULT, 0, GUI_WIDTH, GUI_HEIGHT, GetDesktopWindow(), NULL, NULL, NULL);
     assert(plugin->gui->main_view);
+
+    // TODO: handle scale change in WindowProc
+    plugin->gui->pixel_scale = (float)GetDpiForWindow(plugin->gui->main_view) / 96.0f;
 }
 
 void GUIDestroy(const clap_c99_distortion_plug *plugin)

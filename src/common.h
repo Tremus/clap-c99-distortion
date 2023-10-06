@@ -11,6 +11,7 @@ typedef struct
     void *main_view;
     void *parent_window;
     NVGcontext *nvg;
+    float pixel_scale;
     int main_fbo;
 
     clap_id draw_timer_ID;
