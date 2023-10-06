@@ -8,8 +8,7 @@
 typedef struct
 {
     void *plug;
-    void *main_view;
-    void *parent_window;
+    void *window;
     NVGcontext *nvg;
     float pixel_scale;
     int main_fbo;
@@ -33,6 +32,8 @@ typedef struct
     float mix;
     int32_t mode;
 } clap_c99_distortion_plug;
+
+float get_pixel_scale(void *window);
 
 void fallback_timer_plugin_init(const clap_plugin_t *);
 void fallback_timer_plugin_deinit(const clap_plugin_t *);

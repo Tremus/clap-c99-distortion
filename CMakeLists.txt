@@ -24,7 +24,7 @@ set(DIRS
 )
 
 if (APPLE)
-    add_library(plugin_platform STATIC src/platform_osx.m)
+    add_library(plugin_platform STATIC src/platform_macos.m)
     list(APPEND LIBS "-framework Cocoa -framework Metal -framework QuartzCore")
     list(APPEND DIRS libs/nanovg_compat/modules/MetalNanoVG/src)
     target_include_directories(plugin_platform PRIVATE ${DIRS})

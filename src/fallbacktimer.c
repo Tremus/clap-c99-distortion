@@ -8,6 +8,8 @@
 #endif
 #include <windows.h>
 #define PLATFORM_TIMER_MIN USER_TIMER_MINIMUM
+#elif defined(__APPLE__)
+#define PLATFORM_TIMER_MIN 10
 #else
 #error "TODO: OSX & Linux"
 #endif

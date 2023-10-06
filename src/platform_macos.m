@@ -17,16 +17,16 @@ void GUICreate(clap_c99_distortion_plug *plug)
     frame.size.width = GUI_WIDTH;
     frame.size.height = GUI_HEIGHT;
 
-    MainView *main_view = [[MainView alloc] initWithFrame:frame];
-    main_view.plugin = plug;
-    plug->gui->main_view = main_view;
+    MainView *mainview = [[MainView alloc] initWithFrame:frame];
+    mainview.plugin = plug;
+    plug->gui->window = mainview;
 }
 
-void GUIDestroy(clap_c99_distortion_plug *plug) { [((MainView *)plug->gui->main_view) release]; }
+void GUIDestroy(clap_c99_distortion_plug *plug) { [((MainView *)plug->gui->window) release]; }
 
 void GUISetParent(clap_c99_distortion_plug *plug, const clap_window_t *window)
 {
-    MainView *main = (MainView *)plug->gui->main_view;
+    MainView *main = (MainView *)plug->gui->window;
     NSView *parent = (NSView *)window->cocoa;
     if (main.superview != NULL)
         [main removeFromSuperview];
@@ -35,8 +35,15 @@ void GUISetParent(clap_c99_distortion_plug *plug, const clap_window_t *window)
 
 void GUISetVisible(clap_c99_distortion_plug *plug, bool visible)
 {
-    MainView *main = (MainView *)plug->gui->main_view;
+    MainView *main = (MainView *)plug->gui->window;
     [main setHidden:(visible ? NO : YES)];
+}
+
+float get_pixel_scale(void *nsvew)
+{
+    float scale = [[(MainView *)nsvew window] screen].backingScaleFactor;
+    assert(scale >= 1);
+    return scale;
 }
 
 static CFRunLoopTimerRef g_osx_timer = NULL;
@@ -49,7 +56,8 @@ void fallback_timer_platform_globals_init(const clap_plugin_t *cplug)
 {
     CFRunLoopTimerContext context = {};
     context.info = &g_plugintimers;
-    g_osx_timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + 0.01, 0.01, 0, 0,
+    double interval = (double)PLATFORM_TIMER_MIN * 0.001;
+    g_osx_timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + interval, interval, 0, 0,
                                        osx_timer_cb, &context);
     if (g_osx_timer)
         CFRunLoopAddTimer(CFRunLoopGetCurrent(), g_osx_timer, kCFRunLoopCommonModes);

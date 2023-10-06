@@ -14,30 +14,34 @@ void GUICreate(const clap_c99_distortion_plug *plugin)
         wc.lpszClassName = plugin->plugin.desc->id;
         RegisterClass(&wc);
     }
-    plugin->gui->main_view = CreateWindow(
-        plugin->plugin.desc->id, plugin->plugin.desc->name, WS_CHILDWINDOW | WS_CLIPSIBLINGS,
-        CW_USEDEFAULT, 0, GUI_WIDTH, GUI_HEIGHT, GetDesktopWindow(), NULL, NULL, NULL);
-    assert(plugin->gui->main_view);
-
-    // TODO: handle scale change in WindowProc
-    plugin->gui->pixel_scale = (float)GetDpiForWindow(plugin->gui->main_view) / 96.0f;
+    plugin->gui->window = CreateWindow(plugin->plugin.desc->id, plugin->plugin.desc->name,
+                                       WS_CHILDWINDOW | WS_CLIPSIBLINGS, CW_USEDEFAULT, 0,
+                                       GUI_WIDTH, GUI_HEIGHT, GetDesktopWindow(), NULL, NULL, NULL);
+    assert(plugin->gui->window);
 }
 
 void GUIDestroy(const clap_c99_distortion_plug *plugin)
 {
-    DestroyWindow(plugin->gui->main_view);
+    DestroyWindow(plugin->gui->window);
     if (--globalOpenGUICount == 0)
         UnregisterClass(plugin->plugin.desc->id, NULL);
 }
 
 void GUISetParent(clap_c99_distortion_plug *plugin, const clap_window_t *window)
 {
-    SetParent(plugin->gui->main_view, (HWND)window->win32);
+    SetParent(plugin->gui->window, (HWND)window->win32);
 }
 
 void GUISetVisible(clap_c99_distortion_plug *plugin, bool visible)
 {
-    ShowWindow((plugin)->gui->main_view, (visible) ? SW_SHOW : SW_HIDE);
+    ShowWindow((plugin)->gui->window, (visible) ? SW_SHOW : SW_HIDE);
+}
+
+float get_pixel_scale(void *window)
+{
+    float scale = (float)GetDpiForWindow(window) / 96.0f;
+    assert(scale >= 1);
+    return scale;
 }
 
 static HWND g_fallbacktimer_hwnd = NULL;

@@ -51,6 +51,17 @@ static void c99dist_process_event(clap_c99_distortion_plug *plug, const clap_eve
 // clap_plugin_gui //
 /////////////////////
 
+void init_NanoVG(clap_c99_distortion_plug *plug)
+{
+    plug->gui->pixel_scale = get_pixel_scale(plug->gui->window);
+    assert(plug->gui->pixel_scale >= 1);
+    int w = (float)GUI_WIDTH * plug->gui->pixel_scale;
+    int h = (float)GUI_HEIGHT * plug->gui->pixel_scale;
+    plug->gui->nvg = nvgCreateContext(plug->gui->window, 0, w, h);
+    assert(plug->gui->nvg != NULL);
+    plug->gui->main_fbo = nvgCreateFramebuffer(plug->gui->nvg, w, h, 0);
+}
+
 void GUICreate(const clap_c99_distortion_plug *);
 void GUIDestroy(const clap_c99_distortion_plug *);
 void GUISetParent(clap_c99_distortion_plug *, const clap_window_t *);
@@ -65,6 +76,14 @@ void GUIDraw(clap_c99_distortion_plug *plug)
     nvgRect(nvg, 20, 20, 20, 20);
     nvgFillColor(nvg, nvgRGBAf(0.0f, 1.0f, 0.0f, 1.0f));
     nvgFill(nvg);
+
+    nvgBeginPath(nvg);
+    nvgMoveTo(nvg, 100, 100);
+    nvgLineTo(nvg, 200, 200);
+    nvgStrokeWidth(nvg, 1.0f);
+    nvgStrokeColor(nvg, nvgRGBAf(1.0f, 1.0f, 1.0f, 1.0f));
+    nvgStroke(nvg);
+
     nvgEndFrame(nvg);
 
 #ifdef _WIN32
@@ -107,9 +126,6 @@ static bool c99dist_gui_create(const clap_plugin_t *_plugin, const char *api, bo
     gui->plug = plug;
 
     GUICreate(plug);
-    gui->nvg = nvgCreateContext(gui->main_view, 0, GUI_WIDTH, GUI_HEIGHT);
-    assert(gui->nvg != NULL);
-    gui->main_fbo = nvgCreateFramebuffer(gui->nvg, GUI_WIDTH, GUI_HEIGHT, 0);
 
     if (plug->hostTimerSupport && plug->hostTimerSupport->register_timer)
         plug->hostTimerSupport->register_timer(plug->host, 16, &gui->draw_timer_ID);
@@ -134,8 +150,10 @@ static void c99dist_gui_destroy(const clap_plugin_t *_plugin)
         fallback_timer_plugin_deinit(_plugin);
     }
 
-    nvgDeleteFramebuffer(plug->gui->nvg, plug->gui->main_fbo);
-    nvgDeleteContext(plug->gui->nvg);
+    if (plug->gui->main_fbo)
+        nvgDeleteFramebuffer(plug->gui->nvg, plug->gui->main_fbo);
+    if (plug->gui->nvg)
+        nvgDeleteContext(plug->gui->nvg);
     GUIDestroy(plug);
     free(plug->gui);
     plug->gui = NULL;
@@ -168,7 +186,15 @@ static bool c99dist_gui_set_size(const clap_plugin_t *plugin, uint32_t width, ui
 static bool c99dist_gui_set_parent(const clap_plugin_t *_plugin, const clap_window_t *window)
 {
     assert(0 == strcmp(window->api, GUI_API));
-    GUISetParent((clap_c99_distortion_plug *)_plugin->plugin_data, window);
+    clap_c99_distortion_plug *plug = _plugin->plugin_data;
+    GUISetParent(plug, window);
+
+    // On MacOS, when you create a window class you cannot immediately get a pixel scale
+    // NSScreen._backingScaleFactor is initialised with a value of 0!
+    // So we delay initialisation of NVG until we receive a parent window...
+    if (!plug->gui->nvg)
+        init_NanoVG(plug);
+
     return true;
 }
 
@@ -275,7 +301,7 @@ bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
     {
     case 0: // drive
         param_info->id = pid_DRIVE;
-        strncpy_s(param_info->name, CLAP_NAME_SIZE, "Drive", CLAP_NAME_SIZE);
+        strncpy(param_info->name, "Drive", CLAP_NAME_SIZE);
         param_info->module[0] = 0;
         param_info->default_value = 0.;
         param_info->min_value = -1;
@@ -285,7 +311,7 @@ bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
         break;
     case 1: // mix
         param_info->id = pid_MIX;
-        strncpy_s(param_info->name, CLAP_NAME_SIZE, "MIX", CLAP_NAME_SIZE);
+        strncpy(param_info->name, "MIX", CLAP_NAME_SIZE);
         param_info->module[0] = 0;
         param_info->default_value = 0.5;
         param_info->min_value = 0;
@@ -295,7 +321,7 @@ bool c99dist_param_get_info(const clap_plugin_t *plugin, uint32_t param_index,
         break;
     case 2: // mode
         param_info->id = pid_MODE;
-        strncpy_s(param_info->name, CLAP_NAME_SIZE, "Mode", CLAP_NAME_SIZE);
+        strncpy(param_info->name, "Mode", CLAP_NAME_SIZE);
         param_info->module[0] = 0;
         param_info->default_value = 0.;
         param_info->min_value = 0;
