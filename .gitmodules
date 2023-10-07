@@ -10,3 +10,9 @@
 [submodule "libs/vst3sdk"]
 	path = libs/vst3sdk
 	url = https://github.com/steinbergmedia/vst3sdk
+[submodule "libs/rtaudio"]
+	path = libs/rtaudio
+	url = https://github.com/thestk/rtaudio
+[submodule "libs/rtmidi"]
+	path = libs/rtmidi
+	url = https://github.com/thestk/rtmidi
