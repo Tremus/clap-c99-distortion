@@ -551,6 +551,9 @@ static void c99dist_process_event(clap_c99_distortion_plug *plug, const clap_eve
 static clap_process_status c99dist_process(const struct clap_plugin *plugin,
                                            const clap_process_t *process)
 {
+    if (process->audio_inputs_count == 1)
+        return CLAP_PROCESS_ERROR;
+
     clap_c99_distortion_plug *plug = plugin->plugin_data;
     const uint32_t nframes = process->frames_count;
     const uint32_t nev = process->in_events->size(process->in_events);
@@ -580,7 +583,7 @@ static clap_process_status c99dist_process(const struct clap_plugin *plugin,
             }
         }
 
-        /* process every samples until the next event */
+        // process every samples until the next event
         for (; i < next_ev_frame; ++i)
         {
             // fetch input samples
